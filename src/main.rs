@@ -5,9 +5,12 @@ use console::Term;
 use console::style;
 use dialoguer::{theme::CustomPromptCharacterTheme, Input};
 
+use map::{EntityID, Component};
+use std::collections::HashMap;
 
-fn render_map(m: &map::Map, t: &Term) -> Result<()> {
+fn render_map(r: &HashMap<EntityID, &Component>,  t: &Term) -> Result<()> {
 
+    //locate player
     return Ok(());
 
 }
@@ -27,6 +30,15 @@ fn main() -> Result<()> {
     term.clear_screen()?;
     term.write_line(&format!("Welcome to {}", style(&exmap.name).cyan()))?;
 
+    // build reference tables
+    let mut renderables: HashMap<EntityID, &Component> = HashMap::new();
+    for (i, e) in &exmap.entities {
+        for c in &e.comps {
+            if let Component::Renderable { .. } = c {
+                renderables.insert(i.clone(), c);
+            }
+        }
+    }
     while running {
 
         render_map(&exmap, &term)?;

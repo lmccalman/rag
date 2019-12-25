@@ -1,25 +1,38 @@
 ---
 name: Test Map
 entities:
-  - id: 1
+  4:
+    id: 4
+    name: player1
     comps:
       - Renderable:
-          name: "Lachy's Room"
-          short: The room is dark
-          long: This is a crazy dark room
-      - Room:
-          id: 1
-          z: 1
-  - id: 2
+          name: Joe the Mage
+          short: "A small, shaggy mage"
+          long: ~
+      - Player
+  2:
+    id: 2
+    name: room2
     comps:
       - Renderable:
           name: "Andrew's Room"
           short: The room is bright
           long: ~
       - Room:
-          id: 2
           z: 1
-  - id: 3
+  1:
+    id: 1
+    name: room1
+    comps:
+      - Renderable:
+          name: "Lachy's Room"
+          short: The room is dark
+          long: This is a crazy dark room
+      - Room:
+          z: 1
+  3:
+    id: 3
+    name: door1
     comps:
       - Renderable:
           name: Big Door
@@ -28,14 +41,7 @@ entities:
       - Object:
           location:
             InRoom:
-              id: 2
+              id: 1
       - Portal:
           from: 1
           to: 2
-  - id: 3
-    comps:
-      - Renderable:
-          name: Joe the Mage
-          short: "A small, shaggy mage"
-          long: ~
-      - Player
