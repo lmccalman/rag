@@ -2,13 +2,7 @@ use super::map;
 use std::collections::{HashMap, HashSet};
 
 type EntityID = i64;
-
 type NameLookup = HashMap<map::EntityName, EntityID>;
-// #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-// pub struct EntityID(pub i64);
-// #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-// pub struct Location(pub i64);
-
 type Name = String;
 type ShortDescription = String;
 type LongDescription = String;
@@ -18,6 +12,16 @@ type Container = HashSet<EntityID>;
 pub struct Portal { pub from: EntityID, pub to: EntityID }
 #[derive(Debug)]
 pub struct Player { pub location: EntityID }
+
+pub struct IDGen(std::ops::Range<i64>);
+impl IDGen {
+    pub fn new() -> IDGen {
+        return IDGen(std::ops::Range {start: 0, end: 2^32});
+    }
+    pub fn next(&mut self) -> EntityID {
+        return self.0.next().unwrap();
+    }
+}
 
 
 #[derive(Debug)]
@@ -37,23 +41,6 @@ pub struct GameState {
     pub movables: HashMap<EntityID, ()>,
     pub capacities: HashMap<EntityID, i64>,
     pub player: Player,
-}
-
-pub struct IDGen(std::ops::Range<i64>);
-
-impl IDGen {
-    pub fn new() -> IDGen {
-        return IDGen(std::ops::Range {start: 0, end: 2^32});
-    }
-    
-    pub fn next_entity(&mut self) -> EntityID {
-        return self.0.next().unwrap();
-    }
-    pub fn next_location(&mut self) -> EntityID {
-        return self.0.next().unwrap();
-    }
-
-
 }
 
 impl GameState {
@@ -146,7 +133,7 @@ impl GameState {
         
         let mut gen = IDGen::new();
         let mut name_lookup: HashMap<map::EntityName, EntityID > = HashMap::new();
-        let player_loc = gen.next_entity();
+        let player_loc = gen.next();
 
         let mut s = GameState {
             game_name: m.name.clone(),
@@ -167,20 +154,20 @@ impl GameState {
             let id = if r.name == m.player.location {
                 player_loc
             } else {
-                gen.next_entity()
+                gen.next()
             };
             s.init_room(r, id, &mut name_lookup);
         }
         for c in &m.containers {
-            let id = gen.next_entity();
+            let id = gen.next();
             s.init_container(c, id, &mut name_lookup);
         }
         for o in &m.objects {
-            let id = gen.next_entity();
+            let id = gen.next();
             s.init_object(o, id, &mut name_lookup);
         }
         for p in &m.portals {
-            let id = gen.next_entity();
+            let id = gen.next();
             s.init_portal(p, id, &mut name_lookup);
         }
         

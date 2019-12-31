@@ -9,6 +9,18 @@ use serde::{Serialize, Deserialize};
 pub struct EntityName(pub String);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RoomSurface {
+    North,
+    Northeast,
+    East,
+    Southeast,
+    South,
+    Southwest,
+    West,
+    Northwest
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Room {
         pub name: EntityName, 
         pub short: String, 
@@ -38,6 +50,7 @@ pub struct Container {
 pub struct Portal {
         pub name: EntityName,
         pub location: EntityName, 
+        pub surface: RoomSurface,
         pub short: String,
         pub long: Option<String>,
         pub from: EntityName,
