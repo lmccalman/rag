@@ -1,19 +1,31 @@
 use anyhow::Result;
 use rag::Config;
+use rag::state::GameState;
 use rag::map;
 use console::Term;   
 use console::style;
 use dialoguer::{theme::CustomPromptCharacterTheme, Input};
 
-use map::{EntityID, Component};
-use std::collections::HashMap;
+//fn render_map(map:  &Map,  t: &Term) -> Result<()> {
 
-fn render_map(r: &HashMap<EntityID, &Component>,  t: &Term) -> Result<()> {
+//    let player_loc : EntityID;
+//    // = EntityID(-1);
+//    match map.player.location {
+//        Location::InRoom(id) => player_loc = id,
+//        Location::InInventory(_) => return Ok(()) 
+//    }
+//    dbg!("Player is in room {}", player_loc);
 
-    //locate player
-    return Ok(());
+//    for e in &map.entities {
+//        if let Some(ref r) = e.renderable {
+//            println!("{}", r.short)
+//        }
+//    }
 
-}
+//    //locate player
+//    return Ok(());
+
+//}
 
 fn main() -> Result<()> {
     
@@ -30,18 +42,13 @@ fn main() -> Result<()> {
     term.clear_screen()?;
     term.write_line(&format!("Welcome to {}", style(&exmap.name).cyan()))?;
 
-    // build reference tables
-    let mut renderables: HashMap<EntityID, &Component> = HashMap::new();
-    for (i, e) in &exmap.entities {
-        for c in &e.comps {
-            if let Component::Renderable { .. } = c {
-                renderables.insert(i.clone(), c);
-            }
-        }
-    }
+    let state = GameState::load(&exmap);
+
+    dbg!(state);
+
     while running {
 
-        render_map(&exmap, &term)?;
+        // render_map(&exmap, &term)?;
 
         
         let buffer: String = Input::with_theme(&cursortheme).with_prompt("").interact()?;

@@ -4,88 +4,101 @@ use std::fs;
 use std::io::prelude::*;
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
-use std::hash::Hash;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub struct EntityID(i64);
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct EntityName(pub String);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Location {
-    InRoom { id: EntityID },
-    InInventory { id: EntityID }
+pub struct Room {
+        pub name: EntityName, 
+        pub short: String, 
+        pub long: Option<String> 
+} 
+    
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Object {
+        pub name: EntityName,
+        pub location: EntityName,
+        pub short: String, 
+        pub long: Option<String>,
+        pub movable: bool
+}
+    
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Container {
+        pub name: EntityName,
+        pub location: EntityName, 
+        pub short: String,
+        pub long: Option<String>,
+        pub movable: bool,
+        pub capacity: i64,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum Component {
-    Renderable { name: String, short: String, long: Option<String>},
-    Room { z: i64 },
-    Object { location: Location },
-    Edible,
-    Player,
-    Portal { from: EntityID, to: EntityID }
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Portal {
+        pub name: EntityName,
+        pub location: EntityName, 
+        pub short: String,
+        pub long: Option<String>,
+        pub from: EntityName,
+        pub to: EntityName,
 }
 
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Entity {
-    pub id: EntityID,
-    pub name: String,
-    pub comps: Vec<Component>
+pub struct Player { 
+    pub name: EntityName,
+    pub location: EntityName 
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Map {
     pub name: String,
-    pub entities: HashMap<EntityID, Entity>
+    pub player: Player,
+    pub rooms: Vec<Room>,
+    pub objects: Vec<Object>,
+    pub containers: Vec<Container>,
+    pub portals: Vec<Portal>,
 }
-
-pub struct IDGenerator(std::ops::Range<i64>);
 
 pub fn example() -> Map {
 
-    let gen = std::ops::Range {start: 0, end: 2^32};
-    let mut exmap = Map {name: "Test Map".to_string(), entities: HashMap::new()};
+    let room1id = EntityName("room1".to_string());
+    let mut exmap = Map {
+        name: "Test Map".to_string(),
+        rooms: Vec::new(),
+        objects: Vec::new(),
+        containers: Vec::new(),
+        portals: Vec::new(),
+        player: Player {name: EntityName("player1".to_string()), location: room1id.clone()}
+    };
 
-    let room1id = EntityID(1);
-    let mut room1 = Box::new(Entity {id: room1id, name: "room1".to_string(), comps: Vec::new()}); 
-    room1.comps.push(Component::Renderable {
-                name: "Lachy's Room".to_string(),
-                short: "The room is dark".to_string(),
-                long: Some("This is a crazy dark room".to_string())
-            });
-    room1.comps.push(Component::Room {z: 1});
-    exmap.entities.insert(room1id, *room1);
+    let room1 = Room {
+        name: room1id.clone(),
+        short: "The room is dark".to_string(),
+        long: Some("This is a crazy dark room".to_string())
+    };
+    exmap.rooms.push(room1);
 
-    let room2id = EntityID(2);
-    let mut room2 = Entity {id: room2id, name: "room2".to_string(), comps: Vec::new()};
-    room2.comps.push(Component::Renderable {
-                name: "Andrew's Room".to_string(),
-                short: "The room is bright".to_string(),
-                long: None
-            });
-    room2.comps.push(Component::Room {z: 1});
-    exmap.entities.insert(room2id, room2);
+    let room2id = EntityName("room2".to_string());
+    let room2 = Room {
+        name: room2id.clone(),
+        short: "The room is bright".to_string(),
+        long: None
+    };
+    exmap.rooms.push(room2);
     
-    let door1id = EntityID(3);
-    let mut door1 = Entity {id: door1id, name: "door1".to_string(), comps: Vec:: new()};
-    door1.comps.push(Component::Renderable {
-                name: "Big Door".to_string(),
-                short: "A large wooden door".to_string(),
-                long: None
-            });
-    door1.comps.push(Component::Object {location: Location::InRoom { id: room1id.clone() }});
-    door1.comps.push(Component::Portal { from: room1id.clone(), to: room2id.clone() });
-    exmap.entities.insert(door1id, door1);
+    let door1id = EntityName("door1".to_string());
+    let door1 = Portal {
+        name: door1id, 
+        short: "A large wooden door".to_string(),
+        long: None,
+        location: room1id.clone(),
+        from: room1id.clone(),
+        to: room2id.clone(),
+    };
+    exmap.portals.push(door1);
     
-    let player1id = EntityID(4);
-    let mut player1 = Entity {id: player1id, name:"player1".to_string(), comps: Vec::new()};
-    player1.comps.push(Component::Renderable {
-                name: "Joe the Mage".to_string(),
-                short: "A small, shaggy mage".to_string(),
-                long: None
-            });
-    player1.comps.push(Component::Player);
-    exmap.entities.insert(player1id, player1);
     return exmap
 }
     

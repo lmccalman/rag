@@ -1,47 +1,21 @@
 ---
 name: Test Map
-entities:
-  4:
-    id: 4
-    name: player1
-    comps:
-      - Renderable:
-          name: Joe the Mage
-          short: "A small, shaggy mage"
-          long: ~
-      - Player
-  2:
-    id: 2
-    name: room2
-    comps:
-      - Renderable:
-          name: "Andrew's Room"
-          short: The room is bright
-          long: ~
-      - Room:
-          z: 1
-  1:
-    id: 1
-    name: room1
-    comps:
-      - Renderable:
-          name: "Lachy's Room"
-          short: The room is dark
-          long: This is a crazy dark room
-      - Room:
-          z: 1
-  3:
-    id: 3
-    name: door1
-    comps:
-      - Renderable:
-          name: Big Door
-          short: A large wooden door
-          long: ~
-      - Object:
-          location:
-            InRoom:
-              id: 1
-      - Portal:
-          from: 1
-          to: 2
+player:
+  name: player1
+  location: room1
+rooms:
+  - name: room1
+    short: The room is dark
+    long: This is a crazy dark room
+  - name: room2
+    short: The room is bright
+    long: ~
+objects: []
+containers: []
+portals:
+  - name: door1
+    location: room1
+    short: A large wooden door
+    long: ~
+    from: room1
+    to: room2
