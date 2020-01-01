@@ -4,13 +4,15 @@ use std::fs;
 use std::io::prelude::*;
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
+use num_enum::IntoPrimitive;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EntityName(pub String);
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, IntoPrimitive)]
 pub enum RoomSurface {
-    North,
+    North = 0,
     Northeast,
     East,
     Southeast,
@@ -92,7 +94,16 @@ pub fn example() -> Map {
         long: Some("This is a crazy dark room".to_string())
     };
     exmap.rooms.push(room1);
-
+    
+    let object1id = EntityName("object1".to_string());
+    let object1 = Object {
+        name: object1id.clone(),
+        short: "stone altar".to_string(),
+        long: None,
+        location: room1id.clone(),
+        movable: false
+    };
+    exmap.objects.push(object1);
     let room2id = EntityName("room2".to_string());
     let room2 = Room {
         name: room2id.clone(),
@@ -107,6 +118,7 @@ pub fn example() -> Map {
         short: "A large wooden door".to_string(),
         long: None,
         location: room1id.clone(),
+        surface: RoomSurface::North,
         from: room1id.clone(),
         to: room2id.clone(),
     };

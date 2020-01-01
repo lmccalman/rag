@@ -4,13 +4,24 @@ use super::state::GameState;
 
 pub fn render(c: &Command, s: &mut GameState, t: &Term) {
 
-    match c {
-        Command::System(System::Initialise) => {
-            //print the description of the players location
-            let short = &s.shorts[&s.player.location];
-            t.write_line(short).unwrap();
-        },
-        _ => {}
+    //print the description of the players location
+    let playerloc = s.player.location;
+    let short = &s.shorts[&playerloc];
+    t.write_line(short).unwrap();
+
+    // list the portals in the room
+    for (k, _) in &s.faceted[&playerloc] {
+        println!("There is a door to the {}", k);
+    }
+
+    let inroom = &(s.containers[&playerloc]);
+
+    if inroom.len() > 0 {
+        println!("In the room there is");
+        for o in inroom {
+            let short = &s.shorts[o];
+            println!("- a {}", short);
+        }
     }
 }
 

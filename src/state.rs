@@ -1,5 +1,8 @@
+use std::fmt;
 use super::map;
 use std::collections::{HashMap, HashSet};
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
 
 type EntityID = i64;
 type NameLookup = HashMap<map::EntityName, EntityID>;
@@ -9,7 +12,7 @@ type LongDescription = String;
 type Container = HashSet<EntityID>;
 
 #[derive(Debug)]
-pub struct Portal { pub from: EntityID, pub to: EntityID }
+pub struct Portal { pub from: EntityID, pub to: EntityID}
 #[derive(Debug)]
 pub struct Player { pub location: EntityID }
 
@@ -23,6 +26,46 @@ impl IDGen {
     }
 }
 
+#[repr(u8)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TryFromPrimitive)]
+pub enum Direction {
+    North = 0,
+    Northeast,
+    East,
+    Southeast,
+    South,
+    Southwest,
+    West,
+    Northwest
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Direction::North => write!(f, "north"),
+            Direction::Northeast => write!(f, "northeast"),
+            Direction::East => write!(f, "east"),
+            Direction::Southeast => write!(f, "southeast"),
+            Direction::South => write!(f, "south"),
+            Direction::Southwest => write!(f, "southwest"),
+            Direction::West => write!(f, "west"),
+            Direction::Northwest => write!(f, "northwest"),
+        }
+    }
+}
+
+impl Direction {
+    fn from_map(d: map::RoomSurface) -> Direction {
+        let direction_primitive : u8 = d.into();
+        return Direction::try_from(direction_primitive).unwrap();
+    }
+
+
+}
+
+
+type DirectionTable = HashMap<Direction, EntityID>;
+
 
 #[derive(Debug)]
 pub struct GameState {
@@ -32,9 +75,15 @@ pub struct GameState {
     pub longs: HashMap<EntityID, LongDescription>,
     // where is the location of an object
     pub locations: HashMap<EntityID, EntityID>,
+    // where is the orientation of an object in a room
+    pub orientations: HashMap<EntityID, Direction>,
     pub portals: HashMap<EntityID, Portal>,
     // what objects are in the container
     pub containers: HashMap<EntityID, Container>,
+    
+    // what exists in faceted storage
+    pub faceted: HashMap<EntityID, DirectionTable>,
+
     // can have players inserted
     pub travelables: HashMap<EntityID, ()>,
     // can be moved around
@@ -49,6 +98,7 @@ impl GameState {
         self.names.insert(id, r.name.0.clone());
         lookup.insert(r.name.clone(), id);
         self.containers.insert(id, HashSet::new());
+        self.faceted.insert(id, HashMap::new());
     }
     
     fn init_container(&mut self, c: &map::Container, id: EntityID, lookup: &mut NameLookup) {
@@ -117,16 +167,14 @@ impl GameState {
         };
         let loc = lookup[&p.location];
         self.locations.insert(id, loc);
-        if let Some(s) = self.containers.get_mut(&loc) {
-            s.insert(id);
-        };
+        let orientation = Direction::from_map(p.surface);
+        self.orientations.insert(id, orientation.clone());
+        if let Some(s) = self.faceted.get_mut(&loc) {
+            s.insert(orientation, id);
+        }
         let from = lookup[&p.from];
         let to = lookup[&p.to];
         self.portals.insert(id, Portal { from, to });
-
-        // portals must be in rooms
-
-
     }
     
     pub fn load(m: &map::Map) -> GameState {
@@ -141,7 +189,9 @@ impl GameState {
             shorts: HashMap::new(),
             longs: HashMap::new(),
             locations: HashMap::new(),
+            orientations: HashMap::new(),
             portals: HashMap::new(),
+            faceted: HashMap::new(),
             containers: HashMap::new(),
             movables: HashMap::new(),
             capacities: HashMap::new(),

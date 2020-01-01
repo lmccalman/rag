@@ -10,11 +10,17 @@ rooms:
   - name: room2
     short: The room is bright
     long: ~
-objects: []
+objects:
+  - name: object1
+    location: room1
+    short: stone altar
+    long: ~
+    movable: false
 containers: []
 portals:
   - name: door1
     location: room1
+    surface: North
     short: A large wooden door
     long: ~
     from: room1

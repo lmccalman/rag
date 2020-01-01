@@ -1,5 +1,6 @@
 use pest::Parser;
-use super::command::{Command, Movement, System};
+use super::command::{Command, System};
+use super::state::Direction;
 
 #[derive(Parser)]
 #[grammar = "input.pest"]
@@ -15,10 +16,14 @@ pub fn parse_input(s: &str) -> Command {
         match i.as_rule() {
             Rule::shortcut => { 
                 match i.as_str() {
-                    "n" => return Command::Movement(Movement::North),
-                    "s" => return Command::Movement(Movement::South),
-                    "e" => return Command::Movement(Movement::East),
-                    "w" => return Command::Movement(Movement::West),
+                    "n" => return Command::Movement(Direction::North),
+                    "ne" => return Command::Movement(Direction::Northeast),
+                    "e" => return Command::Movement(Direction::East),
+                    "se" => return Command::Movement(Direction::Southeast),
+                    "s" => return Command::Movement(Direction::South),
+                    "sw" => return Command::Movement(Direction::Southwest),
+                    "w" => return Command::Movement(Direction::West),
+                    "nw" => return Command::Movement(Direction::Northwest),
                     _ => {},
                 };
             },
