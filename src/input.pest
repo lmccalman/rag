@@ -1,7 +1,8 @@
 
 syscmd = { ("q" | "r") }
 system = { "!"  ~ syscmd } 
-shortcut = { ("n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw" | "i") }
+direction = {(("n" | "s") ~ ("e" | "w")?) | ("e" | "w") }
+shortcut = { (direction | "i") }
 
 command = { SOI ~ ( system | shortcut ) ~ EOI }
 
