@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     let loaded_map = map::load(config.infile)?;
     assert_eq!(exmap, loaded_map);
 
-    let mut state = GameState::load(&loaded_map);
+    let mut state = GameState::load(&loaded_map)?;
 
     let mut running = true;
     let term = Term::stdout();

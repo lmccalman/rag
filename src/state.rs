@@ -1,8 +1,10 @@
 use std::fmt;
+use std::hash::Hash;
 use super::map;
 use std::collections::{HashMap, HashSet};
 use num_enum::TryFromPrimitive;
 use std::convert::TryFrom;
+use anyhow::{Result, anyhow};
 
 type EntityID = i64;
 type NameLookup = HashMap<map::EntityName, EntityID>;
@@ -21,8 +23,11 @@ impl IDGen {
     pub fn new() -> IDGen {
         return IDGen(std::ops::Range {start: 0, end: 2^32});
     }
-    pub fn next(&mut self) -> EntityID {
-        return self.0.next().unwrap();
+    pub fn next(&mut self) -> Result<EntityID> {
+        match self.0.next() {
+        Some(n) => return Ok(n),
+        None => return Err(anyhow!("No more ids to assign to new objects"))
+        }
     }
 }
 
@@ -92,6 +97,21 @@ pub struct GameState {
     pub player: Player,
 }
 
+pub fn get_result<'a, K: Eq + Hash, V>(id: &'a K, 
+                                       map: &'a HashMap<K, V>, 
+                                       desc: &str) -> Result<&'a V> {
+    let obj = (*map).get(id).ok_or(anyhow!("Can't find {}", desc))?;
+    return Ok(obj);
+}
+
+pub fn get_mut_result<'a, K: Eq + Hash, V>(id: &'a K, 
+                                           map: &'a mut HashMap<K, V>, 
+                                           desc: &str) -> Result<&'a mut V> {
+    let obj = map.get_mut(id).ok_or(anyhow!("Can't find {}", desc))?;
+    return Ok(obj);
+}
+
+
 impl GameState {
 
     fn init_room(&mut self, r: &map::Room, id: EntityID, lookup: &mut NameLookup) {
@@ -117,34 +137,35 @@ impl GameState {
         lookup.insert(p.name.clone(), id);
     }
 
-    fn add_room(&mut self, r: &map::Room, lookup: &NameLookup) {
-        let id = lookup[&r.name];
+    fn add_room(&mut self, r: &map::Room, lookup: &NameLookup) -> Result<()> {
+        let id = get_result(&r.name, lookup, &"room")?.clone();
         self.shorts.insert(id, r.short.clone());
         if let Some(l) = &r.long { 
             self.longs.insert(id, l.clone()); 
         };
         self.travelables.insert(id, ());
+        return Ok(());
     }
 
-    fn add_container(&mut self, c: &map::Container, lookup: &NameLookup) {
-        let id = lookup[&c.name];
+    fn add_container(&mut self, c: &map::Container, lookup: &NameLookup) -> Result<()> {
+        let id = get_result(&c.name, lookup, &"container")?.clone();
         self.shorts.insert(id, c.short.clone());
         if let Some(l) = &c.long {
             self.longs.insert(id, l.clone());
         };
-        let loc = lookup[&c.location];
+        let loc = get_result(&c.location, lookup, "container location")?.clone();
         self.locations.insert(id, loc);
         if c.movable {
             self.movables.insert(id, ());
         }
         self.capacities.insert(id, c.capacity);
-        if let Some(s) = self.containers.get_mut(&loc) {
-            s.insert(id);
-        };
+        let cont = get_mut_result(&loc, &mut self.containers, "container table")?;
+        cont.insert(id);
+        return Ok(());
     }
     
-    fn add_object(&mut self, o: &map::Object, lookup: &NameLookup) {
-        let id = lookup[&o.name];
+    fn add_object(&mut self, o: &map::Object, lookup: &NameLookup) -> Result<()> {
+        let id = get_result(&o.name, lookup, &"object")?.clone();
         self.shorts.insert(id, o.short.clone());
         if let Some(l) = &o.long {
             self.longs.insert(id, l.clone());
@@ -152,36 +173,36 @@ impl GameState {
         if o.movable {
             self.movables.insert(id, ());
         }
-        let loc = lookup[&o.location];
+        let loc = get_result(&o.location, lookup, "object location")?.clone();
         self.locations.insert(id, loc);
-        if let Some(s) = self.containers.get_mut(&loc) {
-            s.insert(id);
-        };
+        let cont = get_mut_result(&loc, &mut self.containers, "container table")?;
+        cont.insert(id);
+        return Ok(());
     }
 
-    fn add_portal(&mut self, p: &map::Portal, lookup: &NameLookup) {
-        let id = lookup[&p.name];
+    fn add_portal(&mut self, p: &map::Portal, lookup: &NameLookup) -> Result<()> {
+        let id = get_result(&p.name, lookup, &"portal")?.clone();
         self.shorts.insert(id, p.short.clone());
         if let Some(l) = &p.long {
             self.longs.insert(id, l.clone());
         };
-        let loc = lookup[&p.location];
+        let loc = get_result(&p.location, lookup, "portal location")?.clone();
         self.locations.insert(id, loc);
         let orientation = Direction::from_map(p.surface);
         self.orientations.insert(id, orientation.clone());
-        if let Some(s) = self.faceted.get_mut(&loc) {
-            s.insert(orientation, id);
-        }
-        let from = lookup[&p.from];
-        let to = lookup[&p.to];
+        let facets = get_mut_result(&loc, &mut self.faceted, "portal facet table")?;
+        facets.insert(orientation.clone(), id);
+        let from = get_result(&p.from, lookup, "portal from")?.clone();
+        let to = get_result(&p.to, lookup, "portal to")?.clone();
         self.portals.insert(id, Portal { from, to });
+        return Ok(());
     }
     
-    pub fn load(m: &map::Map) -> GameState {
+    pub fn load(m: &map::Map) -> Result<GameState> {
         
         let mut gen = IDGen::new();
         let mut name_lookup: HashMap<map::EntityName, EntityID > = HashMap::new();
-        let player_loc = gen.next();
+        let player_loc = gen.next()?;
 
         let mut s = GameState {
             game_name: m.name.clone(),
@@ -204,29 +225,29 @@ impl GameState {
             let id = if r.name == m.player.location {
                 player_loc
             } else {
-                gen.next()
+                gen.next()?
             };
             s.init_room(r, id, &mut name_lookup);
         }
         for c in &m.containers {
-            let id = gen.next();
+            let id = gen.next()?;
             s.init_container(c, id, &mut name_lookup);
         }
         for o in &m.objects {
-            let id = gen.next();
+            let id = gen.next()?;
             s.init_object(o, id, &mut name_lookup);
         }
         for p in &m.portals {
-            let id = gen.next();
+            let id = gen.next()?;
             s.init_portal(p, id, &mut name_lookup);
         }
         
         // step 2: do all the references and other stuff
-        for r in &m.rooms { s.add_room(r, &name_lookup); }
-        for c in &m.containers { s.add_container(c, &name_lookup); }
-        for o in &m.objects { s.add_object(o, &name_lookup); }
-        for p in &m.portals { s.add_portal(p, &name_lookup); }
+        for r in &m.rooms { s.add_room(r, &name_lookup)?; }
+        for c in &m.containers { s.add_container(c, &name_lookup)?; }
+        for o in &m.objects { s.add_object(o, &name_lookup)?; }
+        for p in &m.portals { s.add_portal(p, &name_lookup)?; }
 
-        return s;    
+        return Ok(s);    
     }
 }

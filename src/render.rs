@@ -1,27 +1,36 @@
 use console::Term;   
-use super::command::{Command, System};
+use super::command::Command;
+use anyhow::Result;
 use super::state::GameState;
 
-pub fn render(c: &Command, s: &mut GameState, t: &Term) {
+pub fn render(c: &Command, s: &mut GameState, t: &Term) -> Result<()> {
+
+    if let Command::Unknown(s) = c {
+        t.write_line(&format!("Unknown command: {}", s))?;
+    }
 
     //print the description of the players location
     let playerloc = s.player.location;
-    let short = &s.shorts[&playerloc];
-    t.write_line(short).unwrap();
+    if let Some(short) = s.shorts.get(&playerloc) {
+        t.write_line(short)?;
+    }
 
     // list the portals in the room
-    for (k, _) in &s.faceted[&playerloc] {
-        println!("There is a door to the {}", k);
-    }
-
-    let inroom = &(s.containers[&playerloc]);
-
-    if inroom.len() > 0 {
-        println!("In the room there is");
-        for o in inroom {
-            let short = &s.shorts[o];
-            println!("- a {}", short);
+    if let Some(facets) = s.faceted.get(&playerloc) {
+        for (k, _) in facets {
+            println!("There is a door to the {}", k);
         }
     }
+
+    if let Some(inroom) = s.containers.get(&playerloc) {
+        if inroom.len() > 0 {
+            println!("In the room there is");
+            for o in inroom {
+                let short = &s.shorts[o];
+                println!("- a {}", short);
+            }
+        }
+    }
+    return Ok(());
 }
 
