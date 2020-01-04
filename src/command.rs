@@ -1,4 +1,3 @@
-use console::Term;   
 use super::state::{GameState, Direction};
 use super::render::render;
 
@@ -31,10 +30,10 @@ fn movement(c: &Command, s: &mut GameState){
     }
 }
 
-pub fn process(c: &Command, s: &mut GameState, term: &Term) {
+pub fn process(c: &Command, s: &mut GameState) {
 
     movement(c, s);
     // this haapens LAST
-    render(c, s, term);
+    render(c, s);
 
 }

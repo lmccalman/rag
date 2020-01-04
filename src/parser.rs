@@ -1,6 +1,7 @@
 use pest::Parser;
 use super::command::{Command, System};
 use super::state::Direction;
+use std::io::{self, Read};
 
 #[derive(Parser)]
 #[grammar = "input.pest"]
@@ -9,7 +10,10 @@ pub struct InputParser;
 
 pub fn parse_input(s: &str) -> Command {
 
-    if let Ok(c) = &mut InputParser::parse(Rule::command, s) {
+    // todo -- do the wor in a fn with result so I can use ? then wrap at end for command
+    let mut s = String::new();
+    let j = io::stdin().read_to_string(&mut s);
+    if let Ok(c) = &mut InputParser::parse(Rule::command, &s) {
         
         // never fails apparently
         let t = c.next().unwrap(); 

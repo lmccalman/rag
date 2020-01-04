@@ -2,17 +2,18 @@ use anyhow::Result;
 use rag::Config;
 use rag::state::GameState;
 use rag::map;
-use rag::render;
 use rag::parser;
 use rag::command;
-use console::Term;   
-use console::style;
-use dialoguer::{theme::CustomPromptCharacterTheme, Input};
+
+// actix actor framework
+// https://github.com/actix/examples
+// https://medium.com/@fdeantoni/actix-websockets-with-protobuf-bc037a999d89
+// https://github.com/actix/actix/blob/master/examples/chat/src/main.rs
+
 
 
 fn main() -> Result<()> {
     
-    let cursortheme = CustomPromptCharacterTheme::new('>');
     
     let config = Config::new()?;
     println!("{:?}", config);
@@ -25,18 +26,14 @@ fn main() -> Result<()> {
     let mut state = GameState::load(&loaded_map)?;
 
     let mut running = true;
-    let term = Term::stdout();
-    term.clear_screen()?;
-    term.write_line(&format!("Welcome to {}", style(&exmap.name).cyan()))?;
 
     let mut cmd = command::Command::System(command::System::Initialise);
 
     while running {
 
-        command::process(&cmd, &mut state, &term);
-        
-        let buffer: String = Input::with_theme(&cursortheme).with_prompt("").interact()?;
-        cmd = parser::parse_input(buffer.trim());
+        command::process(&cmd, &mut state);
+
+        cmd = parser::parse_input();
         if let command::Command::System(command::System::Quit) = cmd {
             running = false;
         }

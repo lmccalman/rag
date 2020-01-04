@@ -1,18 +1,17 @@
-use console::Term;   
 use super::command::Command;
 use anyhow::Result;
 use super::state::GameState;
 
-pub fn render(c: &Command, s: &mut GameState, t: &Term) -> Result<()> {
+pub fn render(c: &Command, s: &mut GameState) -> Result<()> {
 
     if let Command::Unknown(s) = c {
-        t.write_line(&format!("Unknown command: {}", s))?;
+        println!("Unknown command: {}", s);
     }
 
     //print the description of the players location
     let playerloc = s.player.location;
     if let Some(short) = s.shorts.get(&playerloc) {
-        t.write_line(short)?;
+        println!("{}", short);
     }
 
     // list the portals in the room

@@ -9,9 +9,9 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0"
 dialoguer = "0.5"
-console = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 pest = "2.0"
 pest_derive = "2.0"
 num_enum = "0.4.2"
+termion = "*"
