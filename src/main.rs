@@ -10,6 +10,11 @@ use rag::command;
 // https://medium.com/@fdeantoni/actix-websockets-with-protobuf-bc037a999d89
 // https://github.com/actix/actix/blob/master/examples/chat/src/main.rs
 
+// look at mio or tokio for event driven
+//
+// mioco or futures based such as tokio or futures-rs
+//
+// look at lua or dyon for writing the actual game content or scripting
 
 
 fn main() -> Result<()> {

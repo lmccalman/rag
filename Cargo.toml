@@ -4,7 +4,13 @@ version = "0.1.0"
 authors = ["Lachlan McCalman <lachlan@gradientinstitute.org>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0"
@@ -14,4 +20,8 @@ serde_yaml = "0.8"
 pest = "2.0"
 pest_derive = "2.0"
 num_enum = "0.4.2"
-termion = "*"
+tui = "0.8"
+termion = "1.5"
+tokio = { version = "0.2", features = ["full"] }
+tokio-util = { version = "0.2", features = ["full"] }
+futures = "0.3"
