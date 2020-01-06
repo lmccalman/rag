@@ -1,115 +1,140 @@
-#![warn(rust_2018_idioms)]
-
 use anyhow::Result;
-use tokio::net::TcpListener;
-use tokio::stream::StreamExt;
-use tokio_util::codec::{Framed, LinesCodec};
-use tokio::runtime::Builder;
-use tokio::prelude::*;
-use tokio::runtime::Runtime;
-
-use std::sync::{Arc, Mutex};
-use futures::SinkExt;
-use std::collections::HashMap;
 use std::vec::Vec;
+use std::collections::HashMap;
 use std::string::String;
-use std::env;
 use std::thread;
 use std::time::Duration;
+use std::net::{TcpListener, TcpStream};
+use std::io::{BufReader, BufWriter};
+use std::io::prelude::*;
+use crossbeam::channel;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
-/// Possible requests our clients can send us
-enum Request {
-    Get { key: String },
-    Set { key: String, value: String },
+type UserID = u64;
+
+pub struct ClientIO {
+    reader: BufReader<TcpStream>,
+    writer: BufWriter<TcpStream>
 }
 
-/// Responses to the `Request` commands above
-enum Response {
-    Value {
-        key: String,
-        value: String,
-    },
-    Set {
-        key: String,
-        value: String,
-        previous: Option<String>,
-    },
-    Error {
-        msg: String,
-    },
-}
+impl ClientIO {
 
-fn tcpserver(q: Arc<Mutex<Vec<String>>>) {
+    fn new(s: TcpStream) -> Result<ClientIO> {
 
-    let mut rt = Runtime::new().unwrap();
-    rt.block_on(
-        async {
-            let addr = "127.0.0.1:8080".to_string();
-            let mut listener = TcpListener::bind(&addr).await.unwrap();
-            println!("Listening on: {}", addr);
-            loop {
-                let (socket, _) = listener.accept().await.unwrap();
-                let localqueue = q.clone();
-                tokio::spawn(
-                    async move {
-                        let mut lines = Framed::new(socket, LinesCodec::new());
-                        while let Some(result) = lines.next().await {
-                            match result {
-                                Ok(line) => {
-                                    {
-                                        let mut mq = localqueue.lock().unwrap();
-                                        mq.push(line);
-                                    }
-                                    let response = String::from("Your input is noted.");
-                                    lines.send(response).await.unwrap();
-                                }
-                                Err(e) => {
-                                    println!("error on decoding from socket; error = {:?}", e);
-                                }
-                            } // end match result
-                        } // end line iteration
-                    // connection closed as `lines.next()` returned `None`.
-                    } // end async move block
-                ); // end spawn
-            } // end loop
-        } // end async
-    ); // end block_on
-}
+        let mut ws = s.try_clone()?;
+        let mut reader = BufReader::new(s);
+        let mut writer = BufWriter::new(ws);
+        return Ok(ClientIO {reader, writer})
+    }
+    
+    fn read_line(&mut self) -> Result<String> {
+        let mut line = String::new();
+        self.reader.read_line(&mut line)?;
+        return Ok(line)
+    }
 
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create the runtime
-
-    let mut queue : Vec<String> = Vec::new();
-    let aqueue = Arc::new( Mutex::new(queue) );
-    let tqueue = aqueue.clone();
-    let child = thread::spawn(move || { tcpserver(tqueue) });
-
-    let tick = Duration::from_millis(1000);
-    loop {
-        thread::sleep(tick);
-        {
-            println!("staring lock");
-            {
-                let myqueue = aqueue.lock().unwrap();
-                println!("{}", myqueue.len());
-            }
-            println!("ending lock");
+    fn write_lines(&mut self, msgs: &Vec<String>) -> Result<()> {
+        for m in msgs {
+            self.writer.write(m.as_bytes())?;
         }
+        self.writer.flush()?;
+        return Ok(());
+    }
+}
+
+#[derive(Hash)]
+struct StringHash(String);
+
+fn calculate_hash(mystring: String) -> u64 {
+    let o = StringHash(mystring);
+    let mut s = DefaultHasher::new();
+    o.hash(&mut s);
+    s.finish()
+}
+
+pub struct Comms {
+    clients: HashMap<UserID, ClientIO>
+}
+
+fn comms_thread(s: TcpStream, snd: channel::Sender<String>, 
+                rcv: channel::Receiver<String>) -> Result<()> {
+    let io = ClientIO::new(s);
+    
+    loop {
+        // check for new messages from stream
+        // check for new messages from rcv
+        // forward them
+
 
     }
 
     return Ok(());
 }
 
+struct Client {
+    snd: channel::Sender<String>,
+    rcv: channel::Receiver<String>,
+    sender_handle: thread::JoinHandle<Result<()>>,
+    receiver_handle: thread::JoinHandle<Result<()>>
+    stream: TcpStream
+}
 
-// fn main() {
-//     // build runtime
-//     let mut rt = Builder::new()
-//         .threaded_scheduler()
-//         .core_threads(4)
-//         .thread_name("my-custom-name")
-//         .thread_stack_size(3 * 1024 * 1024)
-//         .build()
-//         .unwrap();
+impl Client {
+    fn new(stream: TcpStream) -> Client {
+        let (snd, rcv) = channel::unbounded();
+        let t_snd = snd.clone();
+        let t_rcv = rcv.clone();
+        let sender_handle = thread::spawn(move|| {sender_thread(s, t_rcv)});
+        let receiver_handle = thread::spawn(move|| {receiver_thread(s, t_snd)});
+        return Client {snd, rcv, sender_handle, receiver_handle, stream}
+    }
+}
 
+
+
+fn tcpserver() -> Result<()> {
+
+    let listener = TcpListener::bind("0.0.0.0:3333")?;
+    println!("Server listening on port 3333");
+    let mut pre_client: Vec<Client> = Vec::new();
+    let mut clients: HashMap<u64, Client> = HashMap::new();
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                println!("New connection: {}", stream.peer_addr().unwrap());
+                pre_client.push(Client::new(stream));
+            }
+            Err(e) => {
+                println!("Error: {}", e);
+            }
+        }
+
+        let mut i = 0;
+        while i != pre_client.len() {
+    
+            let e = &mut pre_client[i]; 
+            if let Ok(s) = e.rcv.try_recv() {
+                let uid = calculate_hash(s); 
+                let mye = pre_client.remove(i);
+                clients.insert(uid, mye);
+            }
+            else {
+                i += 1;
+            }
+        }
+    }
+    // close the socket server
+    drop(listener);
+    return Ok(());
+}
+
+fn main() -> Result<()> {
+    // Create the runtime
+    let child = thread::spawn(move || { tcpserver() });
+    let tick = Duration::from_millis(1000);
+    loop {
+        thread::sleep(tick);
+    }
+    return Ok(());
+}
