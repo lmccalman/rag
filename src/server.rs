@@ -42,14 +42,15 @@ fn receiver_thread(s: TcpStream, snd: channel::Sender<CommsMsg>) -> Result<()> {
     loop {
         let mut line = String::new();
         reader.read_line(&mut line)?;
+        println!("reciever thread got {:?}", line);
         let cm = CommsMsg {time: Instant::now(), msg: line};
         snd.send(cm)?;
     }
 }
 
 pub struct Client {
-    snd: channel::Sender<CommsMsg>,
-    rcv: channel::Receiver<CommsMsg>,
+    snd_in: channel::Sender<CommsMsg>,
+    rcv_out: channel::Receiver<CommsMsg>,
     sender_handle: thread::JoinHandle<Result<()>>,
     receiver_handle: thread::JoinHandle<Result<()>>,
 }
@@ -57,14 +58,15 @@ pub struct Client {
 impl Client {
     fn new(stream: TcpStream) -> Result<Client> {
         // let (snd, rcv) : (channel::Sender<CommsMsg>, channel::Receiver<CommsMsg>) = channel::unbounded();
-        let (snd, rcv) = channel::unbounded();
-        let t_snd = snd.clone();
-        let t_rcv = rcv.clone();
+        let (snd_in, snd_out) = channel::unbounded();
+        let (rcv_in, rcv_out) = channel::unbounded();
+        let t_snd = snd_out.clone();
+        let t_rcv = rcv_in.clone();
         let stream_snd = stream.try_clone()?;
         let stream_rcv = stream.try_clone()?;
-        let sender_handle = thread::spawn(move|| {sender_thread(stream_snd, t_rcv)});
-        let receiver_handle = thread::spawn(move|| {receiver_thread(stream_rcv, t_snd)});
-        return Ok(Client {snd, rcv, sender_handle, receiver_handle});
+        let sender_handle = thread::spawn(move|| {sender_thread(stream_snd, t_snd)});
+        let receiver_handle = thread::spawn(move|| {receiver_thread(stream_rcv, t_rcv)});
+        return Ok(Client {snd_in, rcv_out, sender_handle, receiver_handle});
     }
 }
 
@@ -88,8 +90,8 @@ fn login_thread(clients: ClientDB, mut stream: TcpStream) -> Result<()> {
 
 fn connection_thread(db: ClientDB) -> Result<()> {
 
-    let listener = TcpListener::bind("0.0.0.0:3333")?;
-    println!("Server listening on port 3333");
+    let listener = TcpListener::bind("0.0.0.0:3334")?;
+    println!("Server listening on port 3334");
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
@@ -111,7 +113,7 @@ fn connection_thread(db: ClientDB) -> Result<()> {
 fn pull_messages(db: ClientDB, start_time: &Instant, messages: &mut Vec<(UserID, String)>) {
     let clients = db.lock().unwrap();
     for (uid, s) in clients.iter() {
-        let mut it = s.rcv.try_iter().peekable();
+        let mut it = s.rcv_out.try_iter().peekable();
         loop {
             match it.peek() {
                 Some(m) => { 
@@ -131,7 +133,7 @@ fn pull_messages(db: ClientDB, start_time: &Instant, messages: &mut Vec<(UserID,
 }
 
 fn main() -> Result<()> {
-    let tick = Duration::from_millis(500);
+    let tick = Duration::from_millis(2000);
     // initialise the server connection thread
     let client_mutex : ClientDB = Arc::new(Mutex::new(HashMap::new()));
     let t_clients = client_mutex.clone();
@@ -143,7 +145,16 @@ fn main() -> Result<()> {
         // get all the messages we're going to process this tick
         pull_messages(client_mutex.clone(), &start, &mut messages);
 
+        // game loop!!
+        for (uid, msg) in messages.iter() {
+            println!("Tick message .. id: {} \t msg: {}",uid, msg);
+        }
+
+        messages.clear();
+
+        // finish up the tick
         let finish = Instant::now();
+        
         let actual_tick_length = finish - start;
         if actual_tick_length > tick {
             println!("Error: tick took too long")
