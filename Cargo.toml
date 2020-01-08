@@ -4,14 +4,6 @@ version = "0.1.0"
 authors = ["Lachlan McCalman <lachlan@gradientinstitute.org>"]
 edition = "2018"
 
-[[bin]]
-name = "server"
-path = "src/server.rs"
-
-[[bin]]
-name = "client"
-path = "src/main.rs"
-
 [dependencies]
 anyhow = "1.0"
 dialoguer = "0.5"
