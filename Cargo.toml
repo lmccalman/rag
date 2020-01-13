@@ -5,6 +5,8 @@ authors = ["Lachlan McCalman <lachlan@gradientinstitute.org>"]
 edition = "2018"
 
 [dependencies]
+log = "0.4.8"
+simplelog = "0.7.4"
 anyhow = "1.0"
 dialoguer = "0.5"
 serde = { version = "1.0", features = ["derive"] }

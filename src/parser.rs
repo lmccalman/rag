@@ -1,22 +1,17 @@
 use pest::Parser;
 use super::command::{Command, System};
 use super::state::Direction;
-use std::io::{self, BufRead};
+// use std::io::{self, BufRead};
+use super::UserID;
 
 #[derive(Parser)]
 #[grammar = "input.pest"]
 pub struct InputParser;
 
 
-pub fn parse_input() -> Command {
-
-    // todo -- do the wor in a fn with result so I can use ? then wrap at end for command
-    let mut s = String::new();
-    let stdin = io::stdin();
-    stdin.lock().read_line(&mut s).unwrap();
-    println!("I got input: {}", s);
-
-    if let Ok(c) = &mut InputParser::parse(Rule::command, &s.trim()) {
+fn parse_string(s: &String) -> Command {
+    let t = s.trim().clone();
+    if let Ok(c) = &mut InputParser::parse(Rule::command, &t) {
         
         // never fails apparently
         let t = c.next().unwrap(); 
@@ -53,4 +48,20 @@ pub fn parse_input() -> Command {
     else {
         return Command::Unknown(s.to_string());
     }
+}
+
+pub fn parse_input(msgs: &Vec<(UserID, String)>) -> Vec<(UserID, Command)> {
+
+    let mut cmds : Vec<(UserID, Command)> = Vec::new();
+    for (uid, s) in msgs.iter() {
+        cmds.push((*uid, parse_string(s)));
+    }
+    return cmds;
+    // todo -- do the wor in a fn with result so I can use ? then wrap at end for command
+    // let mut s = String::new();
+    // let stdin = io::stdin();
+    // stdin.lock().read_line(&mut s).unwrap();
+    // println!("I got input: {}", s);
+
+
 }

@@ -13,6 +13,7 @@ use rag::parser;
 use rag::command;
 use rag::net;
 
+use log::{info};
 
 // actix actor framework
 // https://github.com/actix/examples
@@ -39,8 +40,15 @@ fn finish_tick(tick: &Duration, start: &Instant) {
 }
 
 fn main() -> Result<()> {
+    
+    // Initialise logging
+    simplelog::TermLogger::init(
+        simplelog::LevelFilter::Info,
+        simplelog::Config::default(),
+        simplelog::TerminalMode::Mixed).expect("No interactive terminal");
 
     // initialise game state
+    info!("Initialising game state");
     let config = Config::new()?;
     println!("{:?}", config);
 
@@ -60,7 +68,7 @@ fn main() -> Result<()> {
     // fn get_update(&mut self, start_time: &Instant, messages: &mut Vec<(UserID, String)>) {
 
     // TODO make a server console
-    // cmd = parser::parse_input();
+    // cmd = 
     // if let command::Command::System(command::System::Quit) = cmd {
     //     running = false;
     // }
@@ -77,8 +85,10 @@ fn main() -> Result<()> {
         clients.get_update(&start, &mut incoming_messages);
 
         // game loop!!
-        for (uid, msg) in incoming_messages.iter() {
-            println!(". id: {} \t msg: {}",uid, msg);
+        let commands = parser::parse_input(&incoming_messages);
+
+        for (uid, msg) in commands.iter() {
+            println!(". id: {} \t msg: {:?}",uid, msg);
             replies.push((*uid, "Thanks for your message\r\n> ".to_string()));
         }
         clients.send(&replies)?;
