@@ -2,16 +2,16 @@ use anyhow::Result;
 use std::vec::Vec;
 use std::collections::HashMap;
 use std::string::String;
-use std::thread;
 use std::time::{Duration, Instant};
-use std::sync::{Arc, Mutex};
+use std::thread;
 
+use rag::UserID;
 use rag::Config;
 use rag::state::GameState;
 use rag::map;
 use rag::parser;
 use rag::command;
-use rage::net;
+use rag::net;
 
 
 // actix actor framework
@@ -25,6 +25,19 @@ use rage::net;
 //
 // look at lua or dyon for writing the actual game content or scripting
 
+fn finish_tick(tick: &Duration, start: &Instant) {
+    let finish = Instant::now();
+
+    let actual_tick_length = finish - *start;
+    if actual_tick_length > *tick {
+        println!("Error: tick took too long")
+    }
+    else
+    {
+        thread::sleep(*tick - actual_tick_length);
+    }
+}
+
 fn main() -> Result<()> {
 
     // initialise game state
@@ -37,18 +50,14 @@ fn main() -> Result<()> {
     assert_eq!(exmap, loaded_map);
 
     let mut state = GameState::load(&loaded_map)?;
-
-    let mut running = true;
-
     let mut cmd = command::Command::System(command::System::Initialise);
 
 
     let tick = Duration::from_millis(2000);
     // initialise the server connection thread
-    let client_mutex : ClientDB = Arc::new(Mutex::new(HashMap::new()));
-    let t_clients = client_mutex.clone();
-    thread::spawn(move || { connection_thread(t_clients) });
 
+    let mut clients = net::ClientInterface::new();
+    // fn get_update(&mut self, start_time: &Instant, messages: &mut Vec<(UserID, String)>) {
 
     // TODO make a server console
     // cmd = parser::parse_input();
@@ -56,30 +65,30 @@ fn main() -> Result<()> {
     //     running = false;
     // }
 
-    let mut messages: Vec<(UserID, String)> = Vec::new();
-    loop {
+    let mut running = true;
+    let mut incoming_messages: Vec<(UserID, String)> = Vec::new();
+    let mut replies: Vec<(UserID, String)> = Vec::new();
+    while running {
         let start = Instant::now();
+        println!("((( ---");
         // get all the messages we're going to process this tick
-        pull_messages(client_mutex.clone(), &start, &mut messages);
+        // pull_messages(client_mutex.clone(), &start, &mut messages);
+
+        clients.get_update(&start, &mut incoming_messages);
 
         // game loop!!
-        for (uid, msg) in messages.iter() {
-            println!("Tick message .. id: {} \t msg: {}",uid, msg);
+        for (uid, msg) in incoming_messages.iter() {
+            println!(". id: {} \t msg: {}",uid, msg);
+            replies.push((*uid, "Thanks for your message\r\n> ".to_string()));
         }
-
-        messages.clear();
+        clients.send(&replies)?;
 
         // finish up the tick
-        let finish = Instant::now();
-        
-        let actual_tick_length = finish - start;
-        if actual_tick_length > tick {
-            println!("Error: tick took too long")
-        }
-        else
-        {
-            thread::sleep(tick - actual_tick_length);
-        }
+        incoming_messages.clear();
+        replies.clear();
+        finish_tick(&tick, &start);
+
+        println!("--- )))");
     }
     return Ok(());
 }

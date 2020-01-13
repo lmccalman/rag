@@ -1,52 +1,64 @@
+use anyhow::Result;
 use std::net::{TcpListener, TcpStream};
 use std::io::BufReader;
 use std::io::prelude::*;
 use crossbeam::channel;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::thread;
+use std::time::Instant;
 
-type UserID = u64;
+pub type UserID = u64;
+type ClientMap = Arc<Mutex<HashMap<UserID, Client>>>;
 
 pub struct ClientInterface{
-    db: Arc<Mutex<HashMap<UserID, Client>>>,
-    handle: String
+    db: ClientMap,
+    handle: thread::JoinHandle<Result<()>>,
 }
 
 impl ClientInterface {
 
-    fn new() -> ClientInterface {
+    pub fn new() -> ClientInterface {
         let db = Arc::new(Mutex::new(HashMap::new()));
-        let t_clients = client_mutex.clone();
-        let handle = thread::spawn(move || { connection_thread(t_clients) });
+        let t_db = db.clone();
+        let handle = thread::spawn(move || { connection_thread(t_db) });
         return ClientInterface {db, handle};
     }
 
-    fn update(&mut self, start_time: &Instant, messages: &mut Vec<(UserID, String)>) {
-    let clients = self.db.lock().unwrap();
-    for (uid, s) in clients.iter() {
-        let mut it = s.rcv_out.try_iter().peekable();
-        loop {
-            match it.peek() {
-                Some(m) => { 
-                    if m.time < *start_time {
-                        if let Some(a) = it.next() {
-                            messages.push((uid.clone(), a.msg));
+    pub fn send(&mut self, messages: &Vec<(UserID, String)>) -> Result<()> {
+        let db = self.db.lock().unwrap();
+        for (uid, s) in messages.iter() {
+            if let Some(c) = db.get(uid) {
+                c.snd_in.send(CommsMsg { time: Instant::now(), msg: s.clone() })?;
+            }
+        }
+        return Ok(());
+    }
+
+    pub fn get_update(&mut self, start_time: &Instant, messages: &mut Vec<(UserID, String)>) {
+        let clients = self.db.lock().unwrap();
+        for (uid, s) in clients.iter() {
+            let mut it = s.rcv_out.try_iter().peekable();
+            loop {
+                match it.peek() {
+                    Some(m) => { 
+                        if m.time < *start_time {
+                            if let Some(a) = it.next() {
+                                messages.push((uid.clone(), a.msg));
+                            }
+                        } 
+                        else {
+                            break;
                         }
-                    } 
-                    else {
-                        break;
-                    }
-                },
-                None => {break}
+                    },
+                    None => {break}
+                }
             }
         }
     }
 }
-
-
-}
-
-
 
 struct CommsMsg {
     time: Instant,
@@ -76,13 +88,12 @@ fn receiver_thread(s: TcpStream, snd: channel::Sender<CommsMsg>) -> Result<()> {
     loop {
         let mut line = String::new();
         reader.read_line(&mut line)?;
-        println!("reciever thread got {:?}", line);
         let cm = CommsMsg {time: Instant::now(), msg: line};
         snd.send(cm)?;
     }
 }
 
-pub struct Client {
+struct Client {
     snd_in: channel::Sender<CommsMsg>,
     rcv_out: channel::Receiver<CommsMsg>,
     sender_handle: thread::JoinHandle<Result<()>>,
@@ -104,7 +115,7 @@ impl Client {
     }
 }
 
-fn login_thread(clients: ClientDB, mut stream: TcpStream) -> Result<()> {
+fn login_thread(clients: ClientMap, mut stream: TcpStream) -> Result<()> {
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut login = String::new();
     let mut password = String::new();
@@ -122,7 +133,7 @@ fn login_thread(clients: ClientDB, mut stream: TcpStream) -> Result<()> {
 }
 
 
-fn connection_thread(db: ClientDB) -> Result<()> {
+fn connection_thread(db: ClientMap) -> Result<()> {
 
     let listener = TcpListener::bind("0.0.0.0:3334")?;
     println!("Server listening on port 3334");
@@ -142,5 +153,4 @@ fn connection_thread(db: ClientDB) -> Result<()> {
     drop(listener);
     return Ok(());
 }
-
 
