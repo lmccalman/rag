@@ -1,6 +1,6 @@
 use super::state::{GameState, Direction};
 use super::render::render;
-
+use super::UserID;
 
 #[derive(Debug)]
 pub enum System {
@@ -15,22 +15,28 @@ pub enum Command {
     Unknown(String)
 }
 
-fn movement(c: &Command, s: &mut GameState){
+pub struct UserCommand {
+    pub uid: UserID,
+    pub cmd: Command,
+}
 
-    if let Command::Movement(d) = c {
+fn movement(commands: &Vec<UserCommand>, s: &mut GameState) {
+    for c in commands.iter() {
+        if let Command::Movement(d) = c.cmd {
 
-        let loc = &s.player.location;
-        let room_portals = &s.faceted[loc];
-        if room_portals.contains_key(d)  {
-            let portal_id = room_portals[d];
-            let dest = s.portals[&portal_id].to;
-            // move the player!
-            s.player.location = dest;
+            let loc = &s.player.location;
+            let room_portals = &s.faceted[loc];
+            if room_portals.contains_key(d)  {
+                let portal_id = room_portals[d];
+                let dest = s.portals[&portal_id].to;
+                // move the player!
+                s.player.location = dest;
+            }
         }
     }
 }
 
-pub fn process(c: &Command, s: &mut GameState) {
+pub fn process(c: &Vec<UserCommand>, s: &mut GameState) {
 
     movement(c, s);
     // this haapens LAST

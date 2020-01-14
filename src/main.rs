@@ -86,11 +86,11 @@ fn main() -> Result<()> {
 
         // game loop!!
         let commands = parser::parse_input(&incoming_messages);
-
-        for (uid, msg) in commands.iter() {
-            println!(". id: {} \t msg: {:?}",uid, msg);
-            replies.push((*uid, "Thanks for your message\r\n> ".to_string()));
-        }
+    
+        // for c in commands.iter() {
+        //     println!(". id: {} \t msg: {:?}",c.uid, c.cmd);
+        //     replies.push((c.uid, "Thanks for your message\r\n> ".to_string()));
+        // }
         clients.send(&replies)?;
 
         // finish up the tick

@@ -11,12 +11,31 @@ use std::thread;
 use std::time::Instant;
 
 pub type UserID = u64;
+
+// http://danzig.jct.ac.il/tcp-ip-lab/ibm-tutorial/3376c42.html
+// http://mud-dev.wikidot.com/telnet:negotiation
+
+enum TelnetCommand {
+    SE = 240,
+    NOP = 241,
+    DataMark = 242,
+    Break = 243,
+    GoAhead = 249,
+    SB = 250,
+    WILL = 251,
+    WONT = 252,
+    DO = 253,
+    DONT = 254,
+    IAC = 255
+}
+
 type ClientMap = Arc<Mutex<HashMap<UserID, Client>>>;
 
 pub struct ClientInterface{
     db: ClientMap,
     handle: thread::JoinHandle<Result<()>>,
 }
+
 
 impl ClientInterface {
 
@@ -119,6 +138,7 @@ fn login_thread(clients: ClientMap, mut stream: TcpStream) -> Result<()> {
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut login = String::new();
     let mut password = String::new();
+
     stream.write("Username: ".as_bytes())?;
     reader.read_line(&mut login)?;
     stream.write("Password: ".as_bytes())?;

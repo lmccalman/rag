@@ -6,29 +6,38 @@ use num_enum::TryFromPrimitive;
 use std::convert::TryFrom;
 use anyhow::{Result, anyhow};
 
-type EntityID = i64;
+type EntityID = u64;
 type NameLookup = HashMap<map::EntityName, EntityID>;
 type Name = String;
 type ShortDescription = String;
 type LongDescription = String;
 type Container = HashSet<EntityID>;
+type Travelable = HashSet<EntityID>;
 
 #[derive(Debug)]
 pub struct Portal { pub from: EntityID, pub to: EntityID}
+
 #[derive(Debug)]
 pub struct Player { pub location: EntityID }
 
-pub struct IDGen(std::ops::Range<i64>);
+pub struct IDGen(u64);
+
 impl IDGen {
     pub fn new() -> IDGen {
-        return IDGen(std::ops::Range {start: 0, end: 2^32});
+        return IDGen(0);
     }
-    pub fn next(&mut self) -> Result<EntityID> {
-        match self.0.next() {
-        Some(n) => return Ok(n),
-        None => return Err(anyhow!("No more ids to assign to new objects"))
+    pub fn next(&mut self, entities: &HashSet<EntityID>) -> EntityID {
+         
+        let mut found = false;
+        while !found {
+            self.0 += 1;
+            if !entities.contains(&self.0) {
+                found = true;
+            }
         }
+        return self.0;
     }
+
 }
 
 #[repr(u8)]
@@ -75,6 +84,7 @@ type DirectionTable = HashMap<Direction, EntityID>;
 #[derive(Debug)]
 pub struct GameState {
     pub game_name: String,
+    pub entities: HashSet<EntityID>,
     pub names: HashMap<EntityID, Name>,
     pub shorts: HashMap<EntityID, ShortDescription>,
     pub longs: HashMap<EntityID, LongDescription>,
@@ -85,16 +95,14 @@ pub struct GameState {
     pub portals: HashMap<EntityID, Portal>,
     // what objects are in the container
     pub containers: HashMap<EntityID, Container>,
-    
     // what exists in faceted storage
     pub faceted: HashMap<EntityID, DirectionTable>,
-
     // can have players inserted
     pub travelables: HashMap<EntityID, ()>,
     // can be moved around
     pub movables: HashMap<EntityID, ()>,
     pub capacities: HashMap<EntityID, i64>,
-    pub player: Player,
+    pub players: HashMap<EntityID, Player>,
 }
 
 pub fn get_result<'a, K: Eq + Hash, V>(id: &'a K, 
@@ -202,10 +210,10 @@ impl GameState {
         
         let mut gen = IDGen::new();
         let mut name_lookup: HashMap<map::EntityName, EntityID > = HashMap::new();
-        let player_loc = gen.next()?;
 
         let mut s = GameState {
             game_name: m.name.clone(),
+            entities: HashSet::new(),
             names: HashMap::new(),
             shorts: HashMap::new(),
             longs: HashMap::new(),
@@ -217,7 +225,7 @@ impl GameState {
             movables: HashMap::new(),
             capacities: HashMap::new(),
             travelables: HashMap::new(),
-            player: Player {location: player_loc }
+            players: HashMap::new()
         };
 
         // step 1: give everything ids

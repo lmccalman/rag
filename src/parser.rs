@@ -1,5 +1,5 @@
 use pest::Parser;
-use super::command::{Command, System};
+use super::command::{Command, System, UserCommand};
 use super::state::Direction;
 // use std::io::{self, BufRead};
 use super::UserID;
@@ -50,11 +50,11 @@ fn parse_string(s: &String) -> Command {
     }
 }
 
-pub fn parse_input(msgs: &Vec<(UserID, String)>) -> Vec<(UserID, Command)> {
+pub fn parse_input(msgs: &Vec<(UserID, String)>) -> Vec<UserCommand> {
 
-    let mut cmds : Vec<(UserID, Command)> = Vec::new();
+    let mut cmds : Vec<UserCommand> = Vec::new();
     for (uid, s) in msgs.iter() {
-        cmds.push((*uid, parse_string(s)));
+        cmds.push(UserCommand {uid: *uid, cmd: parse_string(s)} );
     }
     return cmds;
     // todo -- do the wor in a fn with result so I can use ? then wrap at end for command
