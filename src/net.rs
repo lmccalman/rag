@@ -5,7 +5,6 @@ use std::io::prelude::*;
 use crossbeam::channel;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::thread;
 use std::time::Instant;
@@ -29,10 +28,11 @@ enum TelnetCommand {
     IAC = 255
 }
 
-type ClientMap = Arc<Mutex<HashMap<UserID, Client>>>;
+type ClientMap = HashMap<UserID, Client>;
 
 pub struct ClientInterface{
     db: ClientMap,
+    new_users: channel::Receiver<(UserID, Client)>,
     handle: thread::JoinHandle<Result<()>>,
 }
 
@@ -40,16 +40,16 @@ pub struct ClientInterface{
 impl ClientInterface {
 
     pub fn new() -> ClientInterface {
-        let db = Arc::new(Mutex::new(HashMap::new()));
-        let t_db = db.clone();
-        let handle = thread::spawn(move || { connection_thread(t_db) });
-        return ClientInterface {db, handle};
+        let db = HashMap::new();
+        let (new_in, new_out) = channel::unbounded();
+        let t_new_in = new_in.clone();
+        let handle = thread::spawn(move || { connection_thread(t_new_in) });
+        return ClientInterface {db: db, new_users: new_out, handle: handle};
     }
 
     pub fn send(&mut self, messages: &Vec<(UserID, String)>) -> Result<()> {
-        let db = self.db.lock().unwrap();
         for (uid, s) in messages.iter() {
-            if let Some(c) = db.get(uid) {
+            if let Some(c) = self.db.get(uid) {
                 c.snd_in.send(CommsMsg { time: Instant::now(), msg: s.clone() })?;
             }
         }
@@ -57,8 +57,13 @@ impl ClientInterface {
     }
 
     pub fn get_update(&mut self, start_time: &Instant, messages: &mut Vec<(UserID, String)>) {
-        let clients = self.db.lock().unwrap();
-        for (uid, s) in clients.iter() {
+        let v: Vec<_> = self.new_users.try_iter().collect();
+        for (uid, client) in v {
+            self.db.insert(uid, client);
+            info!("Added new client");
+        }
+
+        for (uid, s) in self.db.iter() {
             let mut it = s.rcv_out.try_iter().peekable();
             loop {
                 match it.peek() {
@@ -134,7 +139,8 @@ impl Client {
     }
 }
 
-fn login_thread(clients: ClientMap, mut stream: TcpStream) -> Result<()> {
+fn login_thread(sender: channel::Sender<(UserID, Client)>,
+                mut stream: TcpStream) -> Result<()> {
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut login = String::new();
     let mut password = String::new();
@@ -144,16 +150,12 @@ fn login_thread(clients: ClientMap, mut stream: TcpStream) -> Result<()> {
     stream.write("Password: ".as_bytes())?;
     reader.read_line(&mut password)?;
     let uid = calculate_hash(login);
-    // insert this into the client DB
-    {
-        let mut map = clients.lock().unwrap();
-        map.insert(uid, Client::new(stream).unwrap());
-    }
+    sender.send((uid, Client::new(stream).unwrap()))?;
     return Ok(());
 }
 
 
-fn connection_thread(db: ClientMap) -> Result<()> {
+fn connection_thread(sender: channel::Sender<(UserID, Client)>) -> Result<()> {
 
     let listener = TcpListener::bind("0.0.0.0:3334")?;
     println!("Server listening on port 3334");
@@ -161,8 +163,8 @@ fn connection_thread(db: ClientMap) -> Result<()> {
         match stream {
             Ok(stream) => {
                 println!("New connection: {}", stream.peer_addr().unwrap());
-                let thread_db = db.clone();
-                thread::spawn(move || { login_thread(thread_db, stream) });
+                let thread_sender = sender.clone();
+                thread::spawn(move || { login_thread(thread_sender, stream) });
             }
             Err(e) => {
                 println!("Error: {}", e);

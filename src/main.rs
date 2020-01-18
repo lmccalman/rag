@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::vec::Vec;
-use std::collections::HashMap;
 use std::string::String;
 use std::time::{Duration, Instant};
 use std::thread;
@@ -12,8 +11,7 @@ use rag::map;
 use rag::parser;
 use rag::command;
 use rag::net;
-
-use log::{info};
+// use log::{info};
 
 // actix actor framework
 // https://github.com/actix/examples
@@ -48,7 +46,6 @@ fn main() -> Result<()> {
         simplelog::TerminalMode::Mixed).expect("No interactive terminal");
 
     // initialise game state
-    info!("Initialising game state");
     let config = Config::new()?;
     println!("{:?}", config);
 
@@ -57,7 +54,9 @@ fn main() -> Result<()> {
     let loaded_map = map::load(config.infile)?;
     assert_eq!(exmap, loaded_map);
 
-    let mut state = GameState::load(&loaded_map)?;
+    let mut state = GameState::new();
+    state.load(&loaded_map)?;
+    
     let mut cmd = command::Command::System(command::System::Initialise);
 
 

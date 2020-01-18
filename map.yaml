@@ -1,8 +1,5 @@
 ---
 name: Test Map
-player:
-  name: player1
-  location: room1
 rooms:
   - name: room1
     short: The room is dark
@@ -25,3 +22,8 @@ portals:
     long: ~
     from: room1
     to: room2
+spawners:
+  - name: spawner1
+    location: room1
+    short: A crystal fountain
+    long: ~

@@ -1,6 +1,6 @@
 use pest::Parser;
 use super::command::{Command, System, UserCommand};
-use super::state::Direction;
+use super::Direction;
 // use std::io::{self, BufRead};
 use super::UserID;
 
